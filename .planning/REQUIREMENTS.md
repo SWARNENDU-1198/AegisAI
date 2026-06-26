@@ -11,7 +11,7 @@
 - [x] **CORE-02**: Crawl specific target directories recursively to scan all files.
 - [x] **CORE-03**: Calculate SHA-256 signatures for scanned files.
 - [x] **CORE-04**: Bulk persist scanned files info to a local SQLite database table.
-- [ ] **CORE-05**: Optimize database insertions to avoid N+1 query loops.
+- [x] **CORE-05**: Optimize database insertions to avoid N+1 query loops.
 - [ ] **CORE-06**: Execute scanning and hashing operations asynchronously using background tasks to prevent blocking the HTTP event loop.
 
 ### Storage & Duplicate Analysis Engine
@@ -71,7 +71,7 @@
 | CORE-02 | Phase 0 (Pre-existing) | Complete |
 | CORE-03 | Phase 0 (Pre-existing) | Complete |
 | CORE-04 | Phase 0 (Pre-existing) | Complete |
-| CORE-05 | Phase 1 (Optimization) | Pending |
+| CORE-05 | Phase 1 (Optimization) | Complete |
 | CORE-06 | Phase 1 (Optimization) | Pending |
 | STOR-01 | Phase 0 (Pre-existing) | Complete |
 | STOR-02 | Phase 0 (Pre-existing) | Complete |
