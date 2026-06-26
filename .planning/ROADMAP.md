@@ -6,7 +6,7 @@
 
 ## Phases
 
-- [ ] **Phase 1: Database & Crawler Optimization** - Optimize indexing performance and convert file scanning and hashing into non-blocking background processes.
+- [x] **Phase 1: Database & Crawler Optimization** - Optimize indexing performance and convert file scanning and hashing into non-blocking background processes. (completed 2026-06-26)
 - [ ] **Phase 2: File Categorization Engine** - Classify indexed files by file extension or structure into logical groups.
 - [ ] **Phase 3: Rich Metadata Engine** - Extract details from media and document file formats.
 - [ ] **Phase 4: Security Scan Engine** - Identify insecure files or scripts and find leaked secrets.
@@ -26,7 +26,7 @@
 
 Plans:
 - [x] 01-01: Optimize database indexing queries
-- [ ] 01-02: Implement asynchronous background disk scans and hashing tasks
+- [x] 01-02: Implement asynchronous background disk scans and hashing tasks
 
 ### Phase 2: File Categorization Engine
 **Goal**: Classify indexed files by file extension or structure into logical groups.
@@ -68,7 +68,7 @@ Plans:
 
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
-| 1     | v1.0      | 1/2 | In Progress|  |
+| 1     | v1.0      | 2/2 | Complete   | 2026-06-26 |
 | 2     | v1.0      | 0/0            | Not started | - |
 | 3     | v1.0      | 0/0            | Not started | - |
 | 4     | v1.0      | 0/0            | Not started | - |
