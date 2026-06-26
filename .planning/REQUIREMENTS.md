@@ -1,0 +1,99 @@
+# Requirements: AegisAI
+
+**Defined:** 2026-06-26
+**Core Value:** Provides a safe, intelligent digital assistant that helps users understand, search, and optimize their local machine's files, storage, and security without automated destructive changes.
+
+## v1 Requirements
+
+### Core Indexing & Scanning Engine
+
+- [x] **CORE-01**: Start FastAPI application server with interactive swagger UI.
+- [x] **CORE-02**: Crawl specific target directories recursively to scan all files.
+- [x] **CORE-03**: Calculate SHA-256 signatures for scanned files.
+- [x] **CORE-04**: Bulk persist scanned files info to a local SQLite database table.
+- [ ] **CORE-05**: Optimize database insertions to avoid N+1 query loops.
+- [ ] **CORE-06**: Execute scanning and hashing operations asynchronously using background tasks to prevent blocking the HTTP event loop.
+
+### Storage & Duplicate Analysis Engine
+
+- [x] **STOR-01**: Analyze database to calculate total files count, total size, and average size.
+- [x] **STOR-02**: Identify and retrieve top N largest files on the local disk.
+- [x] **STOR-03**: Query and group identical files by comparing SHA-256 signatures.
+
+### AI Engine
+
+- [x] **AI-01**: Encapsulate Google Gemini API interaction via a generic ask function.
+- [x] **AI-02**: Generate custom storage cleanup advice based on storage analysis, largest files, and duplicates.
+- [x] **AI-03**: Run interactive chat bot queries responding to questions based on local storage context.
+
+### File Categorization Engine
+
+- [ ] **CAT-01**: Map files to logical categories (Media, Documents, Code, Archives, Temp) based on suffixes and file structures.
+- [ ] **CAT-02**: Expose categorizer statistics endpoint (file counts and sizes per category).
+
+### Metadata Extraction Engine
+
+- [ ] **META-01**: Extract dimensions and creation dates from image files.
+- [ ] **META-02**: Parse metadata parameters (artist, duration) from audio files.
+- [ ] **META-03**: Retrieve summary fields (author, pages count) from PDFs and office documents.
+
+### Security Engine
+
+- [ ] **SEC-01**: Scan local files for plain-text sensitive info (keys, passwords, API tokens, PII).
+- [ ] **SEC-02**: Identify suspicious executables or scripts in scanned directories.
+
+### Cleanup Engine
+
+- [ ] **CLEAN-01**: Provide endpoints to delete duplicate files safely with mandatory user confirmation.
+- [ ] **CLEAN-02**: Enable targeting and deletion of temporary or junk files to recover local storage space.
+
+## v2 Requirements
+
+### Natural Language Search
+- **SRCH-01**: Search local files using semantic search queries via local embeddings.
+- **SRCH-02**: Retrieve files using conversational context ("find the contract I edited yesterday").
+
+### Folder Summaries
+- **SUMM-01**: Provide high-level descriptions of directories and their contents using LLM analysis.
+
+## Out of Scope
+
+| Feature | Reason |
+|---------|--------|
+| Automated file deletion | Prevent accidental data loss and maintain user trust |
+| Direct cloud backup integrations | Keep core focus on local disk optimization |
+
+## Traceability
+
+| Requirement | Phase | Status |
+|-------------|-------|--------|
+| CORE-01 | Phase 0 (Pre-existing) | Complete |
+| CORE-02 | Phase 0 (Pre-existing) | Complete |
+| CORE-03 | Phase 0 (Pre-existing) | Complete |
+| CORE-04 | Phase 0 (Pre-existing) | Complete |
+| CORE-05 | Phase 1 (Optimization) | Pending |
+| CORE-06 | Phase 1 (Optimization) | Pending |
+| STOR-01 | Phase 0 (Pre-existing) | Complete |
+| STOR-02 | Phase 0 (Pre-existing) | Complete |
+| STOR-03 | Phase 0 (Pre-existing) | Complete |
+| AI-01 | Phase 0 (Pre-existing) | Complete |
+| AI-02 | Phase 0 (Pre-existing) | Complete |
+| AI-03 | Phase 0 (Pre-existing) | Complete |
+| CAT-01 | Phase 2 (Categorization) | Pending |
+| CAT-02 | Phase 2 (Categorization) | Pending |
+| META-01 | Phase 3 (Metadata) | Pending |
+| META-02 | Phase 3 (Metadata) | Pending |
+| META-03 | Phase 3 (Metadata) | Pending |
+| SEC-01 | Phase 4 (Security) | Pending |
+| SEC-02 | Phase 4 (Security) | Pending |
+| CLEAN-01 | Phase 5 (Cleanup) | Pending |
+| CLEAN-02 | Phase 5 (Cleanup) | Pending |
+
+**Coverage:**
+- v1 requirements: 21 total
+- Mapped to phases: 21
+- Unmapped: 0 ✔
+
+---
+*Requirements defined: 2026-06-26*
+*Last updated: 2026-06-26 after initial definition*

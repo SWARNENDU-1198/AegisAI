@@ -47,5 +47,4 @@ env/
 Thumbs.db
 
 # Project specific
-.planning/
 node_modules/
