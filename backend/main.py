@@ -1,11 +1,23 @@
-from fastapi import FastAPI
+import asyncio
+import logging
+import threading
+import time
+import uuid
+from fastapi import FastAPI, HTTPException, status
+
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(name)s: %(message)s"
+)
+logger = logging.getLogger(__name__)
 
 # Config
 try:
     from config import SCAN_PATHS
 except ImportError:
     SCAN_PATHS = []
-    print("[WARNING] config.py not found")
+    logger.warning("config.py not found")
 
 
 # Scanner
@@ -13,7 +25,7 @@ try:
     from scanner.scanner import scan_multiple_directories
 except ImportError:
     scan_multiple_directories = None
-    print("[WARNING] scanner module not found")
+    logger.warning("scanner module not found")
 
 
 # Database
@@ -21,7 +33,7 @@ try:
     from database.init_db import create_tables
 except ImportError:
     create_tables = None
-    print("[WARNING] database init module not found")
+    logger.warning("database init module not found")
 
 
 # Services
@@ -29,21 +41,21 @@ try:
     from services.hash_service import calculate_hash
 except ImportError:
     calculate_hash = None
-    print("[WARNING] hash service not found")
+    logger.warning("hash service not found")
 
 
 try:
     from services.file_service import save_files
 except ImportError:
     save_files = None
-    print("[WARNING] file service not found")
+    logger.warning("file service not found")
 
 
 try:
     from services.duplicate_service import find_duplicates
 except ImportError:
     find_duplicates = None
-    print("[WARNING] duplicate service not found")
+    logger.warning("duplicate service not found")
 
 
 try:
@@ -54,7 +66,7 @@ try:
 except ImportError:
     get_storage_analysis = None
     get_largest_files = None
-    print("[WARNING] storage service not found")
+    logger.warning("storage service not found")
 
 
 try:
@@ -63,7 +75,7 @@ try:
     )
 except ImportError:
     generate_cleanup_advice = None
-    print("[WARNING] ai service not found")
+    logger.warning("ai service not found")
 
 
 try:
@@ -72,7 +84,7 @@ try:
     )
 except ImportError:
     answer_question = None
-    print("[WARNING] chat service not found")
+    logger.warning("chat service not found")
 
 
 # Chat Models
@@ -82,7 +94,7 @@ try:
     )
 except ImportError:
     ChatRequest = None
-    print("[WARNING] chat models not found")
+    logger.warning("chat models not found")
 
 
 app = FastAPI(
@@ -95,6 +107,85 @@ app = FastAPI(
 # Initialize Database
 if create_tables:
     create_tables()
+
+
+# Global state to track background scanning
+scan_state = {
+    "task_id": None,
+    "status": "idle",  # "idle", "running", "completed", "failed"
+    "total_files": 0,
+    "processed_files": 0,
+    "current_file": None,
+    "error": None,
+    "start_time": None,
+    "end_time": None,
+    "elapsed_seconds": 0
+}
+scan_lock = threading.Lock()
+
+
+async def background_scan_task(task_id: str) -> None:
+    """Run filesystem scanning and hashing in background thread pools."""
+    global scan_state
+    logger.info("Background scan task %s started", task_id)
+    start_epoch = time.time()
+    
+    try:
+        if not scan_multiple_directories or not calculate_hash or not save_files:
+            raise RuntimeError("Required scanner or persistence services are not loaded")
+
+        # Step 1: Scan directories using asyncio.to_thread to keep main loop responsive
+        logger.info("Executing filesystem crawl in background thread...")
+        files = await asyncio.to_thread(scan_multiple_directories, SCAN_PATHS)
+        
+        total_count = len(files)
+        with scan_lock:
+            if scan_state["task_id"] != task_id:
+                logger.warning("Task %s was superseded or cancelled", task_id)
+                return
+            scan_state["total_files"] = total_count
+            scan_state["processed_files"] = 0
+            
+        logger.info("Crawl completed. Found %d files. Hashing and verifying...", total_count)
+        
+        # Step 2: Hashing files one-by-one, yielding control to main loop
+        for idx, file in enumerate(files):
+            with scan_lock:
+                if scan_state["task_id"] != task_id:
+                    logger.warning("Task %s was cancelled during hashing", task_id)
+                    return
+            
+            # Hashing is CPU-bound; run in a threadpool worker
+            file_hash = await asyncio.to_thread(calculate_hash, file["path"])
+            file["hash"] = file_hash
+            
+            # Update state progress
+            with scan_lock:
+                scan_state["processed_files"] = idx + 1
+                scan_state["current_file"] = file["path"]
+                scan_state["elapsed_seconds"] = int(time.time() - start_epoch)
+        
+        # Step 3: Persistence
+        logger.info("Hashed all files. Bulk persisting %d records to SQLite...", total_count)
+        await asyncio.to_thread(save_files, files)
+        
+        # Mark completed
+        with scan_lock:
+            if scan_state["task_id"] == task_id:
+                scan_state["status"] = "completed"
+                scan_state["end_time"] = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+                scan_state["elapsed_seconds"] = int(time.time() - start_epoch)
+                scan_state["current_file"] = None
+        logger.info("Background scan task %s successfully finished", task_id)
+        
+    except Exception as e:
+        logger.exception("Error in background scan task %s: %s", task_id, str(e))
+        with scan_lock:
+            if scan_state["task_id"] == task_id:
+                scan_state["status"] = "failed"
+                scan_state["error"] = str(e)
+                scan_state["end_time"] = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+                scan_state["elapsed_seconds"] = int(time.time() - start_epoch)
 
 
 @app.get("/")
@@ -121,34 +212,85 @@ def scan():
 
 
 @app.get("/scan-and-save")
-def scan_and_save():
-
+async def scan_and_save():
+    global scan_state
+    
     if not scan_multiple_directories:
-        return {
-            "error": "Scanner module not loaded"
-        }
-
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Scanner module not loaded"
+        )
     if not calculate_hash:
-        return {
-            "error": "Hash service not loaded"
-        }
-
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Hash service not loaded"
+        )
     if not save_files:
-        return {
-            "error": "File service not loaded"
-        }
-
-    files = scan_multiple_directories(SCAN_PATHS)
-
-    for file in files:
-        file["hash"] = calculate_hash(file["path"])
-
-    save_files(files)
-
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="File service not loaded"
+        )
+        
+    with scan_lock:
+        if scan_state["status"] == "running":
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail={
+                    "message": "Scan already in progress",
+                    "task_id": scan_state["task_id"],
+                    "processed_files": scan_state["processed_files"],
+                    "total_files": scan_state["total_files"]
+                }
+            )
+            
+        task_id = str(uuid.uuid4())
+        scan_state.update({
+            "task_id": task_id,
+            "status": "running",
+            "total_files": 0,
+            "processed_files": 0,
+            "current_file": None,
+            "error": None,
+            "start_time": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+            "end_time": None,
+            "elapsed_seconds": 0
+        })
+        
+    asyncio.create_task(background_scan_task(task_id))
+    
     return {
-        "message": "Files scanned and saved successfully",
-        "count": len(files)
+        "message": "Scan started in background",
+        "task_id": task_id
     }
+
+
+@app.get("/scan-status/{task_id}")
+def scan_status(task_id: str):
+    global scan_state
+    
+    with scan_lock:
+        if scan_state["task_id"] != task_id:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Task with ID {task_id} not found"
+            )
+            
+        total = scan_state["total_files"]
+        processed = scan_state["processed_files"]
+        progress_percent = int((processed / total) * 100) if total > 0 else 0
+        
+        return {
+            "task_id": scan_state["task_id"],
+            "status": scan_state["status"],
+            "total_files": total,
+            "processed_files": processed,
+            "progress_percent": progress_percent,
+            "current_file": scan_state["current_file"],
+            "error": scan_state["error"],
+            "start_time": scan_state["start_time"],
+            "end_time": scan_state["end_time"],
+            "elapsed_seconds": scan_state["elapsed_seconds"]
+        }
 
 
 @app.get("/duplicates")
