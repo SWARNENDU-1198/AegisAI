@@ -28,7 +28,13 @@ def save_files(file_list: List[Dict[str, Any]]) -> None:
     try:
         # Fetch all existing paths in a single query
         existing_paths = {row[0] for row in db.query(FileRecord.path).all()}
-        
+        print(f"DEBUG_SAVE: file_list length: {len(file_list)}")
+        print(f"DEBUG_SAVE: existing_paths length: {len(existing_paths)}")
+        if existing_paths:
+            print(f"DEBUG_SAVE: sample existing paths: {list(existing_paths)[:3]}")
+        if file_list:
+            print(f"DEBUG_SAVE: sample file_list paths: {[f['path'] for f in file_list[:3]]}")
+            
         # Filter out already existing files and duplicates within file_list itself
         to_insert = []
         seen_in_batch = set()
@@ -41,8 +47,12 @@ def save_files(file_list: List[Dict[str, Any]]) -> None:
                     "path": path,
                     "size": file["size"],
                     "extension": file["extension"],
-                    "hash": file.get("hash")
+                    "hash": file.get("hash"),
+                    "category": file.get("category", "Other"),
+                    "meta_data": file.get("meta_data"),
+                    "vector_embedding": file.get("vector_embedding")
                 })
+
         
         if to_insert:
             db.bulk_insert_mappings(FileRecord, to_insert)

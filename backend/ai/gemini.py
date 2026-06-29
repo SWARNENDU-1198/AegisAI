@@ -25,3 +25,20 @@ def ask_ai(prompt):
     except Exception as e:
 
         return f"AI Error: {str(e)}"
+
+
+import logging
+logger = logging.getLogger(__name__)
+
+def get_embedding(text: str, is_query: bool = False) -> list[float]:
+    task_type = "retrieval_query" if is_query else "retrieval_document"
+    try:
+        response = genai.embed_content(
+            model="models/gemini-embedding-001",
+            content=text,
+            task_type=task_type
+        )
+        return response.get("embedding", [])
+    except Exception as e:
+        logger.error("Failed to generate embedding: %s", str(e))
+        return []

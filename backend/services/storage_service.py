@@ -1,3 +1,4 @@
+from sqlalchemy import func
 from database.db import SessionLocal
 from database.models import FileRecord
 
@@ -54,3 +55,26 @@ def get_largest_files(limit=20):
 
     finally:
         db.close()
+
+
+def get_storage_by_category():
+    db = SessionLocal()
+    try:
+        results = (
+            db.query(
+                FileRecord.category,
+                func.count(FileRecord.id).label("count"),
+                func.sum(FileRecord.size).label("total_size")
+            )
+            .group_by(FileRecord.category)
+            .all()
+        )
+        return {
+            row.category or "Other": {
+                "count": row.count,
+                "total_size_bytes": row.total_size or 0
+            }
+            for row in results
+        }
+    finally:
+        db.close()

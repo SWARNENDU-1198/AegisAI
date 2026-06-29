@@ -22,3 +22,10 @@ class FileRecord(Base):
     extension = Column(String)
 
     hash = Column(String)
+
+    category = Column(String, nullable=True)
+
+    meta_data = Column(String, nullable=True)
+
+    vector_embedding = Column(String, nullable=True)
+

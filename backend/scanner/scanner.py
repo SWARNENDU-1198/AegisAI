@@ -34,6 +34,6 @@ def scan_multiple_directories(directories):
             all_files.extend(files)
 
         except Exception as e:
-            print("Error scanning {directory}: {e}")
+            print(f"Error scanning {directory}: {e}")
 
     return all_files
